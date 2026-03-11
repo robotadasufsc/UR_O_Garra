@@ -1,71 +1,81 @@
-# Select ROS distro at build time (default to humble if not set)
+# ==========================================
+# ROS 2 Humble + MoveIt 2 + UR3 / UR driver
+# ==========================================
+
 ARG ROS_DISTRO=humble
-FROM ros:${ROS_DISTRO} AS base
+FROM ros:${ROS_DISTRO}
 
-# Use bash for RUN commands so `source` works in the same layer
-SHELL ["/bin/bash", "-lc"]
-
-# Noninteractive apt
+SHELL ["/bin/bash", "-c"]
 ARG DEBIAN_FRONTEND=noninteractive
 
-# System + ROS build deps (trimmed; add more as needed)
-RUN apt-get update && apt-get upgrade -y && apt-get install -y \
-    apt-utils \
+# Basic tools + ROS build tools
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     cmake \
+    git \
     curl \
     wget \
-    unzip \
+    vim \
+    nano \
+    iputils-ping \
+    net-tools \
+    python3-pip \
     python3-colcon-common-extensions \
+    python3-colcon-mixin \
     python3-rosdep \
+    python3-vcstool \
+    && rm -rf /var/lib/apt/lists/*
+
+# ROS / MoveIt / UR packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ros-${ROS_DISTRO}-moveit \
+    ros-${ROS_DISTRO}-moveit-common \
+    ros-${ROS_DISTRO}-moveit-planners-ompl \
+    ros-${ROS_DISTRO}-moveit-ros-planning-interface \
+    ros-${ROS_DISTRO}-moveit-servo \
+    ros-${ROS_DISTRO}-ur \
+    ros-${ROS_DISTRO}-ur-robot-driver \
+    ros-${ROS_DISTRO}-ur-description \
+    ros-${ROS_DISTRO}-ur-moveit-config \
+    ros-${ROS_DISTRO}-ur-msgs \
+    ros-${ROS_DISTRO}-controller-manager \
+    ros-${ROS_DISTRO}-joint-state-broadcaster \
+    ros-${ROS_DISTRO}-joint-trajectory-controller \
+    ros-${ROS_DISTRO}-ros2-control \
+    ros-${ROS_DISTRO}-ros2-controllers \
+    ros-${ROS_DISTRO}-robot-state-publisher \
+    ros-${ROS_DISTRO}-joint-state-publisher \
+    ros-${ROS_DISTRO}-joint-state-publisher-gui \
+    ros-${ROS_DISTRO}-rviz2 \
+    ros-${ROS_DISTRO}-tf2-tools \
     ros-${ROS_DISTRO}-xacro \
     ros-${ROS_DISTRO}-angles \
     ros-${ROS_DISTRO}-diagnostic-updater \
-    ros-${ROS_DISTRO}-ur \
-    libpcl-dev \
-    libpcap0.8-dev \
-    libdraco-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Initialize rosdep
+RUN if [ ! -f /etc/ros/rosdep/sources.list.d/20-default.list ]; then rosdep init; fi && \
+    rosdep update
 
-# Initialize rosdep (official ROS images usually have this, but safe to include)
-RUN rosdep update || (rosdep init && rosdep update)
+# Colcon mixin
+RUN colcon mixin add default https://raw.githubusercontent.com/colcon/colcon-mixin-repository/master/index.yaml || true && \
+    colcon mixin update default || true
 
-# -------- Builder stage: build both workspaces --------
-FROM base AS builder
+# Copy workspace
+COPY ./overlay_ws/src /overlay_ws/src
+WORKDIR /overlay_ws
 
-# ---- Workspace 1: velodyne ----
-WORKDIR /colcon_ws
+# Optional build step for custom packages
+# This only matters if you copied your own packages into /overlay_ws/src
+RUN source /opt/ros/${ROS_DISTRO}/setup.bash && \
+    if [ -n "$(ls -A /overlay_ws/src 2>/dev/null)" ]; then \
+        rosdep install --from-paths /overlay_ws/src --ignore-src --rosdistro ${ROS_DISTRO} -y -r && \
+        colcon build --symlink-install; \
+    fi
 
-# Resolve deps & build
-RUN source /opt/ros/${ROS_DISTRO}/setup.bash \
-&& rosdep install --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} -y -r \
-&& colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release --symlink-install --merge-install
+# Source ROS automatically
+RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> /root/.bashrc && \
+    echo "if [ -f /overlay_ws/install/setup.bash ]; then source /overlay_ws/install/setup.bash; fi" >> /root/.bashrc
 
-# ---- Workspace 2: point_cloud_transport(+plugins) that depends on velodyne install ----
-WORKDIR /colcon_ws
-COPY colcon_ws/src/point_cloud_transport/ /colcon_ws/src/point_cloud_transport/
-COPY colcon_ws/src/point_cloud_transport_plugins/ /colcon_ws//src/point_cloud_transport_plugins/
-
-RUN source /opt/ros/${ROS_DISTRO}/setup.bash \
-&& source /colcon_velodyne/install/setup.bash \
-&& rosdep install --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} -y -r \
-&& colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release --symlink-install --merge-install
-
-# Runtime env (set as ENV so non-interactive shells see them)
-ENV RMW_IMPLEMENTATION=rmw_zenoh_cpp \
-ROS_DOMAIN_ID=22
-
-# Optional: helpful entry scripts
-COPY entrypoint_scripts/velodyne_node_entry.sh /velodyne_node_entry.sh
-COPY entrypoint_scripts/velodyne_points_entry.sh /velodyne_points_entry.sh
-COPY entrypoint_scripts/velodyne_encoder_entry.sh /velodyne_encoder_entry.sh
-COPY entrypoint_scripts/velodyne_decoder_entry.sh /velodyne_decoder_entry.sh
-RUN chmod +x /velodyne_*_entry.sh
-
-# Source overlays in all interactive shells
-RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> /etc/bash.bashrc \
-&& echo "source /colcon_velodyne/install/setup.bash" >> /etc/bash.bashrc \
-&& echo "source /colcon_ws/install/setup.bash" >> /etc/bash.bashrc
-
+WORKDIR /overlay_ws
 CMD ["bash"]
