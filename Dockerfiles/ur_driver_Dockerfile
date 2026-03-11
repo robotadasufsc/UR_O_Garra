@@ -1,0 +1,71 @@
+# Select ROS distro at build time (default to humble if not set)
+ARG ROS_DISTRO=humble
+FROM ros:${ROS_DISTRO} AS base
+
+# Use bash for RUN commands so `source` works in the same layer
+SHELL ["/bin/bash", "-lc"]
+
+# Noninteractive apt
+ARG DEBIAN_FRONTEND=noninteractive
+
+# System + ROS build deps (trimmed; add more as needed)
+RUN apt-get update && apt-get upgrade -y && apt-get install -y \
+    apt-utils \
+    build-essential \
+    cmake \
+    curl \
+    wget \
+    unzip \
+    python3-colcon-common-extensions \
+    python3-rosdep \
+    ros-${ROS_DISTRO}-xacro \
+    ros-${ROS_DISTRO}-angles \
+    ros-${ROS_DISTRO}-diagnostic-updater \
+    ros-${ROS_DISTRO}-ur \
+    libpcl-dev \
+    libpcap0.8-dev \
+    libdraco-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+
+# Initialize rosdep (official ROS images usually have this, but safe to include)
+RUN rosdep update || (rosdep init && rosdep update)
+
+# -------- Builder stage: build both workspaces --------
+FROM base AS builder
+
+# ---- Workspace 1: velodyne ----
+WORKDIR /colcon_ws
+
+# Resolve deps & build
+RUN source /opt/ros/${ROS_DISTRO}/setup.bash \
+&& rosdep install --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} -y -r \
+&& colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release --symlink-install --merge-install
+
+# ---- Workspace 2: point_cloud_transport(+plugins) that depends on velodyne install ----
+WORKDIR /colcon_ws
+COPY colcon_ws/src/point_cloud_transport/ /colcon_ws/src/point_cloud_transport/
+COPY colcon_ws/src/point_cloud_transport_plugins/ /colcon_ws//src/point_cloud_transport_plugins/
+
+RUN source /opt/ros/${ROS_DISTRO}/setup.bash \
+&& source /colcon_velodyne/install/setup.bash \
+&& rosdep install --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} -y -r \
+&& colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release --symlink-install --merge-install
+
+# Runtime env (set as ENV so non-interactive shells see them)
+ENV RMW_IMPLEMENTATION=rmw_zenoh_cpp \
+ROS_DOMAIN_ID=22
+
+# Optional: helpful entry scripts
+COPY entrypoint_scripts/velodyne_node_entry.sh /velodyne_node_entry.sh
+COPY entrypoint_scripts/velodyne_points_entry.sh /velodyne_points_entry.sh
+COPY entrypoint_scripts/velodyne_encoder_entry.sh /velodyne_encoder_entry.sh
+COPY entrypoint_scripts/velodyne_decoder_entry.sh /velodyne_decoder_entry.sh
+RUN chmod +x /velodyne_*_entry.sh
+
+# Source overlays in all interactive shells
+RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> /etc/bash.bashrc \
+&& echo "source /colcon_velodyne/install/setup.bash" >> /etc/bash.bashrc \
+&& echo "source /colcon_ws/install/setup.bash" >> /etc/bash.bashrc
+
+CMD ["bash"]
