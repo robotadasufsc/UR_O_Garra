@@ -1,45 +1,93 @@
-# Sobre esse repositório
+# Sobre este repositório
 
-Este documento e repositório está direcionado aos integrantes da equipe de competição [Robota  UFSC](https://www.instagram.com/robota.ufsc/?hl=pt), para a orientar na operação do robô UR3 / CB3, carinhosamente apelidado de "O Garra".
-Este repositório serve para que seja possivel operar O Garra com ROS2 e MoveIt2. Primeiramente estará documentado qual foi o processo para de preparação do robô, como foi estabelecido a conexão com entre um notebook e o robô, e como iniciar o ROS2 Driver.
+Este repositório foi criado para orientar os integrantes da equipe de competição [Robota UFSC](https://www.instagram.com/robota.ufsc/?hl=pt) na operação do robô UR3/CB3, carinhosamente apelidado de **O Garra**.
 
-# Preparando o Robô
+O objetivo deste material é documentar, de forma clara e prática, o processo necessário para operar o robô com **ROS 2** e **MoveIt 2**. Ao longo deste README, são apresentados:
 
-Foram 4 processos que foram feitos para que o robô funcionasse com ROS2: fazer o update do software do robô, iniciar a conexão (via cabo Ethernet) entre o notebook e o robô, atualizar os Host IP e Port do controlador e, por fim, iniciar o programa com o controle externo.
+- os passos de preparação do robô;
+- o processo de conexão entre o notebook e o robô via cabo Ethernet;
+- a configuração necessária no controlador;
+- e a forma de iniciar o driver ROS 2 para controle externo.
 
-## Update de Software
+---
 
-As informações oficiais para a realização dos updates podem ser encontrados nos seguintes links: [Download Center](https://www.universal-robots.com/articles/ur/documentation/download-center/) e [Update Procedure](https://www.universal-robots.com/manuals/EN/HTML/SW5_20/Content/prod-serv-man/E-series/serv-man-update.htm).
+# Preparando o robô
 
-*É importante destacar a importancia de sempre que fizer update, ligar os motores do robô (como se você fosse operar, mover o robô) assim que instalar um update, para que seja feito também o update do firmeware. Especialmente se for necessário mais de um update seguido.*
+Para que o robô funcione corretamente com ROS 2, foram necessários quatro passos principais:
 
-## Conectando o Notebook
+1. atualizar o software do robô;
+2. estabelecer a conexão entre o notebook e o robô via cabo Ethernet;
+3. configurar o **Host IP** e a **Porta** do controlador;
+4. iniciar o programa de **controle externo** no robô.
 
-Primeiro, conecte um cabo Ethernet na parte inferior do CLP do robô, e a outra ponta no notebook.
+## Atualização de software
 
-O **robô** está configurado no IP **192.168.0.141**. Você pode verificar essa informação na IHM do robô (na tela inicial, selecione *sobre*).
+As instruções oficiais para atualização do software podem ser consultadas nos links abaixo:
 
-Para configurar o notebook, vá nas configurações de rede do notebook e crie uma nova conexão com as seguintes informações:
-- IPv4 - Manual;
-- Endereço: 192.168.0.22 (o último número pode ser modificado, mas deve ser consistente com as próximas configurações e diferente de 141);
-- Netmask: 255.255.255.0
-- Gateway: 192.168.0.1
+- [Download Center](https://www.universal-robots.com/articles/ur/documentation/download-center/)
+- [Update Procedure](https://www.universal-robots.com/manuals/EN/HTML/SW5_20/Content/prod-serv-man/E-series/serv-man-update.htm)
 
-## Host IP e Port do Controlador 
+> **Importante:** sempre que um update for instalado, ligue os motores do robô logo em seguida, como se fosse utilizá-lo normalmente. Isso é necessário para que a atualização de **firmware** também seja concluída corretamente. Esse cuidado é ainda mais importante quando for necessário realizar mais de uma atualização em sequência.
 
-Para que o controlador do O Garra aceite os comandos de movimento vindas do ROS2, é preciso configurar o sistema para identificar esses comandos. Para isso, siga os passos a seguir:
+## Conectando o notebook ao robô
 
-1. No IHM do robô, depois de ligar o robô, faça a sua inicialização;
-2. Novamente na tela principal, selecione *Programar Robô";
-3. Selecione *Programa Vazio* (Caso queira usar o já existente, selecione *Carregar Programa* e *external.urp*, e pule para o número 6);
-4. Dentro do programa, selecione *Estrutura* e depois *URCaps*;
-5. Clique em *External Control*. É possivel observar que no lado esquerdo da IHM o *Control* foi adicionado no programa;
-6. No topo da tela, mude para a seção *Instalação* e em seguida selecione *External Control*. Aqui é possivel ver o Host IP e Port configurados para o controlador. O IP deve ser o mesmo que foi configurado para o laptop durante a seção [Conectando o Notebook](#conectando-o-notebook). O Custom port deve ser mantido em 50002.
-7. Volte para o Programa, na seção *Comando* você deve ser capaz de ver o IP atualizado.
+Primeiro, conecte um cabo Ethernet na parte inferior do CLP do robô e a outra extremidade no notebook.
 
-## Controle Externo
+O **robô** está configurado com o IP **192.168.0.141**. Essa informação pode ser verificada diretamente na IHM do robô, na tela inicial, acessando a seção **Sobre**.
 
-Para habilitar agora o robô para receber comandos do ROS2, você deve apenas iniciar o programa que foi configurado na seção anterior. Para fazer isso, clique no ▶︎ play no canto inferior esquerdo da IHM.
+No notebook, configure manualmente uma conexão de rede com os seguintes parâmetros:
+
+- **IPv4:** Manual
+- **Endereço IP:** `192.168.0.22`  
+  > O último número pode ser alterado, desde que:
+  > - seja diferente de `141`;
+  > - esteja na mesma faixa de rede;
+  > - e seja usado de forma consistente nas próximas configurações.
+- **Máscara de rede:** `255.255.255.0`
+- **Gateway:** `192.168.0.1`
+
+## Configuração do Host IP e da porta do controlador
+
+Para que o controlador do **O Garra** aceite comandos de movimento enviados pelo ROS 2, é necessário configurar corretamente o sistema de **External Control**.
+
+Siga os passos abaixo:
+
+1. Na IHM do robô, ligue o robô e faça sua inicialização normalmente.
+2. Na tela principal, selecione **Programar Robô**.
+3. Escolha **Programa Vazio**.  
+   - Caso deseje utilizar um programa já existente, selecione **Carregar Programa** e abra o arquivo `external.urp`. Nesse caso, pule para o passo 6.
+4. Dentro do programa, selecione **Estrutura** e depois **URCaps**.
+5. Clique em **External Control**.  
+   Após isso, será possível observar no lado esquerdo da IHM que o bloco **External Control** foi adicionado ao programa.
+6. No topo da tela, vá para a seção **Instalação** e selecione **External Control** na barra lateral.
+7. Verifique os campos de configuração:
+   - **Host IP:** deve ser o mesmo IP configurado no notebook na seção [Conectando o notebook ao robô](#conectando-o-notebook-ao-robô);
+   - **Custom Port:** deve ser mantido em **50002**.
+8. Volte para a aba **Programa**. Na seção **Comando**, o IP atualizado deverá estar visível.
+
+## Habilitando o controle externo
+
+Após a configuração descrita acima, o robô estará pronto para receber comandos enviados pelo ROS 2.
+
+Para isso, basta iniciar o programa configurado anteriormente:
+
+- na IHM do robô, clique no botão **▶ Play**, localizado no canto inferior esquerdo da tela.
+
+Com isso, o modo de **controle externo** será ativado, permitindo que o robô seja comandado pelo driver ROS 2.
+
+---
+
+## Observações finais
+
+Antes de iniciar o driver ROS 2, confira se:
+
+- o notebook está conectado ao robô via Ethernet;
+- o IP do notebook está corretamente configurado;
+- o **Host IP** no **External Control** corresponde ao IP do notebook;
+- a porta configurada é **50002**;
+- e o programa de controle externo está em execução na IHM.
+
+Essas verificações evitam a maior parte dos problemas de conexão entre o notebook e o robô.
 
 # Driver ROS2
 
