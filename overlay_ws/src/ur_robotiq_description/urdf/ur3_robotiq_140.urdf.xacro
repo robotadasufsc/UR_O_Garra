@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<robot name="ur3_robotiq_140" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:include filename="$(find ur_description)/urdf/ur_macro.xacro"/>
+  <xacro:include filename="$(find robotiq_description)/urdf/robotiq_2f_140_macro.urdf.xacro"/>
+
+  <xacro:arg name="ur_type" default="ur3"/>
+  <xacro:arg name="tf_prefix" default=""/>
+  <xacro:arg name="joint_limits_parameters_file" default="$(find ur_description)/config/$(arg ur_type)/joint_limits.yaml"/>
+  <xacro:arg name="kinematics_parameters_file" default="$(find ur_description)/config/$(arg ur_type)/default_kinematics.yaml"/>
+  <xacro:arg name="physical_parameters_file" default="$(find ur_description)/config/$(arg ur_type)/physical_parameters.yaml"/>
+  <xacro:arg name="visual_parameters_file" default="$(find ur_description)/config/$(arg ur_type)/visual_parameters.yaml"/>
+  <xacro:arg name="use_fake_hardware" default="true"/>
+  <xacro:arg name="com_port" default="/dev/ttyUSB0"/>
+
+  <link name="world"/>
+
+  <xacro:ur_robot
+      name="$(arg ur_type)"
+      tf_prefix="$(arg tf_prefix)"
+      parent="world"
+      joint_limits_parameters_file="$(arg joint_limits_parameters_file)"
+      kinematics_parameters_file="$(arg kinematics_parameters_file)"
+      physical_parameters_file="$(arg physical_parameters_file)"
+      visual_parameters_file="$(arg visual_parameters_file)">
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </xacro:ur_robot>
+
+  <xacro:robotiq_gripper
+      name="RobotiqGripperHardwareInterface"
+      prefix="gripper_"
+      parent="$(arg tf_prefix)flange"
+      use_fake_hardware="$(arg use_fake_hardware)"
+      com_port="$(arg com_port)">
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </xacro:robotiq_gripper>
+
+</robot>

@@ -53,6 +53,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-${ROS_DISTRO}-diagnostic-updater \
     && rm -rf /var/lib/apt/lists/*
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ros-${ROS_DISTRO}-ament-clang-format \
+    ros-${ROS_DISTRO}-ament-clang-tidy \
+    && rm -rf /var/lib/apt/lists/*
+
 # Initialize rosdep
 RUN if [ ! -f /etc/ros/rosdep/sources.list.d/20-default.list ]; then rosdep init; fi && \
     rosdep update
@@ -61,6 +66,22 @@ RUN if [ ! -f /etc/ros/rosdep/sources.list.d/20-default.list ]; then rosdep init
 RUN colcon mixin add default https://raw.githubusercontent.com/colcon/colcon-mixin-repository/master/index.yaml || true && \
     colcon mixin update default || true
 
+# Clone dependecies workspace
+COPY ./colcon_ws/src /colcon_ws/src
+
+# Solve dependence issues with serial package
+WORKDIR /colcon_ws
+RUN vcs import src --skip-existing --input src/ros2_robotiq_gripper/ros2_robotiq_gripper-not-released.humble.repos
+
+# Install module dependencies for colcon_ws
+
+RUN . /opt/ros/humble/setup.sh && \
+    rosdep install --from-paths src --ignore-src -r -y
+
+# Build the workspace with resource management
+RUN source /opt/ros/humble/setup.bash && \
+    colcon build --symlink-install
+
 # Copy workspace
 COPY ./overlay_ws/src /overlay_ws/src
 WORKDIR /overlay_ws
@@ -68,14 +89,14 @@ WORKDIR /overlay_ws
 # Optional build step for custom packages
 # This only matters if you copied your own packages into /overlay_ws/src
 RUN source /opt/ros/${ROS_DISTRO}/setup.bash && \
-    if [ -n "$(ls -A /overlay_ws/src 2>/dev/null)" ]; then \
-        rosdep install --from-paths /overlay_ws/src --ignore-src --rosdistro ${ROS_DISTRO} -y -r && \
-        colcon build --symlink-install; \
-    fi
+    source /colcon_ws/install/setup.bash && \
+    rosdep install --from-paths /overlay_ws/src --ignore-src --rosdistro ${ROS_DISTRO} -y -r && \
+    colcon build --symlink-install
 
 # Source ROS automatically
 RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> /root/.bashrc && \
-    echo "if [ -f /overlay_ws/install/setup.bash ]; then source /overlay_ws/install/setup.bash; fi" >> /root/.bashrc
+    echo "source /colcon_ws/install/setup.bash" >> /root/.bashrc && \
+    echo "source /overlay_ws/install/setup.bash" >> /root/.bashrc
 
 WORKDIR /overlay_ws
 CMD ["bash"]

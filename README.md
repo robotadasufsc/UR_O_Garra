@@ -75,6 +75,10 @@ Para isso, basta iniciar o programa configurado anteriormente:
 
 Com isso, o modo de **controle externo** será ativado, permitindo que o robô seja comandado pelo driver ROS 2.
 
+***NOTA**: Pode ser que seja necessário primeiro iniciar o driver no laptop antes de dar o Play na IHM. Ainda não confirmei se essa é a causa, mas aparece o seguinte erro se tentar dar o play primeiro:*
+
+***The conection to the remote PC at 192.168.0.22:50002 could not be established. Reason: Connection refused.***
+
 ---
 
 ## Observações finais
