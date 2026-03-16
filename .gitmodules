@@ -1,0 +1,4 @@
+[submodule "colcon_ws/src/ros2_robotiq_gripper"]
+	path = colcon_ws/src/ros2_robotiq_gripper
+	url = git@github.com:PickNikRobotics/ros2_robotiq_gripper.git
+	branch = humble
